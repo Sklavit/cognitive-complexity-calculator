@@ -1,5 +1,5 @@
 {
-  "name": "python-code-analyzer",
+  "name": "cognitive-complexity-calculator",
   "private": true,
   "version": "0.0.0",
   "type": "module",

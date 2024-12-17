@@ -23,7 +23,7 @@ A web-based tool for analyzing the cognitive complexity of Python code. This too
 1. Clone the repository:
 ```bash
 git clone [repository-url]
-cd python-code-analyzer
+cd cognitive-complexity-calculator
 ```
 
 2. Install dependencies:

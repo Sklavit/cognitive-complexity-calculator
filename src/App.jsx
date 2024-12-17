@@ -76,7 +76,7 @@ function App() {
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-      <h1>Python Code Analyzer</h1>
+      <h1>Cognitive Complexity Calculator</h1>
       <div style={{ 
         backgroundColor: '#2F3129', 
         color: 'white', 

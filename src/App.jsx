@@ -31,7 +31,8 @@ function App() {
         passed: result.total === example.expectedComplexity,
         expected: example.expectedComplexity,
         actual: result.total,
-        code: example.code
+        code: example.code,
+        explanation: example.explanation
       };
     });
     setTestResults(results);
@@ -114,6 +115,13 @@ function App() {
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
             >
               {result.name}: {result.passed ? '✓' : '✗'} (Expected: {result.expected}, Got: {result.actual})
+              <div style={{ 
+                fontSize: '0.9em', 
+                color: '#888',
+                marginTop: '2px' 
+              }}>
+                {result.explanation}
+              </div>
             </div>
           ))}
         </div>

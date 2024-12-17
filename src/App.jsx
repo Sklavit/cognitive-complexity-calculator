@@ -12,8 +12,12 @@ function App() {
   const [testResults, setTestResults] = useState(null);
 
   useEffect(() => {
-    setComplexity(calculateCognitiveComplexity(code));
+    computeComplexity();
   }, [code]);
+
+  const computeComplexity = () => {
+    setComplexity(calculateCognitiveComplexity(code));
+  };
 
   const handleAutoFormat = () => {
     const formattedCode = code
@@ -89,6 +93,7 @@ function App() {
       />
       <div>
         <button onClick={handleAutoFormat}>Autoformat</button>
+        <button onClick={computeComplexity}>Compute Complexity</button>
         <button onClick={runTests}>Run Test Examples</button>
       </div>
       {testResults && (

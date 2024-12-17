@@ -16,7 +16,7 @@ A web-based tool for analyzing the cognitive complexity of Python code. This too
 ### Prerequisites
 
 - Node.js (version 18.17.0)
-- npm (included with Node.js)
+- pnpm (recommended to install via `npm install -g pnpm`)
 
 ### Installation
 
@@ -28,12 +28,12 @@ cd python-code-analyzer
 
 2. Install dependencies:
 ```bash
-npm install
+pnpm install
 ```
 
 3. Start the development server:
 ```bash
-npm run dev
+pnpm dev
 ```
 
 The application will be available at the local URL provided in the terminal.
@@ -63,12 +63,12 @@ Click on any test example to load it into the editor and see its complexity calc
 
 ### Available Scripts
 
-- `npm run dev` - Start development server
-- `npm test` - Run tests
-- `npm run test:ui` - Run tests with UI
-- `npm run coverage` - Generate test coverage report
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
+- `pnpm dev` - Start development server
+- `pnpm test` - Run tests
+- `pnpm test:ui` - Run tests with UI
+- `pnpm coverage` - Generate test coverage report
+- `pnpm build` - Build for production
+- `pnpm preview` - Preview production build
 
 ### Project Structure
 

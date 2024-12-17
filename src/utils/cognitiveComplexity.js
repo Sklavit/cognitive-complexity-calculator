@@ -1,38 +1,55 @@
-const calculateCognitiveComplexity = (code) => {
-  let complexity = 0;
-  let nestingLevel = 0;
+const calculateLineComplexity = (line, nestingLevel) => {
+  const complexity = { value: 0, reason: '' };
   
-  // Split code into lines and remove empty lines
-  const lines = code.split('\n').filter(line => line.trim());
+  if (line.startsWith('if ') || line.startsWith('elif ')) {
+    complexity.value = 1 + nestingLevel;
+    complexity.reason = nestingLevel > 0 ? `+${1 + nestingLevel} (nesting=${nestingLevel})` : '+1';
+  }
+  else if (line.startsWith('else:')) {
+    complexity.value = 1;
+    complexity.reason = '+1';
+  }
+  else if (line.startsWith('for ') || line.startsWith('while ')) {
+    complexity.value = 1 + nestingLevel;
+    complexity.reason = nestingLevel > 0 ? `+${1 + nestingLevel} (nesting=${nestingLevel})` : '+1';
+  }
+  else if (line.startsWith('except ')) {
+    complexity.value = 1 + nestingLevel;
+    complexity.reason = nestingLevel > 0 ? `+${1 + nestingLevel} (nesting=${nestingLevel})` : '+1';
+  }
+  
+  if (line.includes(' and ') || line.includes(' or ')) {
+    complexity.value += 1;
+    complexity.reason = complexity.reason ? `${complexity.reason}, +1 (logical)` : '+1 (logical)';
+  }
+  
+  return complexity;
+};
+
+const calculateCognitiveComplexity = (code) => {
+  let totalComplexity = 0;
+  let nestingLevel = 0;
+  const lineComplexities = [];
+  
+  const lines = code.split('\n');
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    
-    // Increment for control flow structures
-    if (line.startsWith('if ') || line.startsWith('elif ')) {
-      complexity += 1 + nestingLevel;
-      nestingLevel++;
-    }
-    else if (line.startsWith('else:')) {
-      complexity += 1;
-    }
-    else if (line.startsWith('for ') || line.startsWith('while ')) {
-      complexity += 1 + nestingLevel;
-      nestingLevel++;
-    }
-    else if (line.startsWith('try:')) {
-      nestingLevel++;
-    }
-    else if (line.startsWith('except ')) {
-      complexity += 1 + nestingLevel;
+    if (!line) {
+      lineComplexities.push({ value: 0, reason: '' });
+      continue;
     }
     
-    // Check for logical operators
-    if (line.includes(' and ') || line.includes(' or ')) {
-      complexity += 1;
+    const complexity = calculateLineComplexity(line, nestingLevel);
+    lineComplexities.push(complexity);
+    totalComplexity += complexity.value;
+    
+    if (line.startsWith('if ') || line.startsWith('elif ') || 
+        line.startsWith('for ') || line.startsWith('while ') ||
+        line.startsWith('try:')) {
+      nestingLevel++;
     }
     
-    // Decrease nesting level when block ends
     if (i < lines.length - 1 && 
         lines[i + 1].trim().length > 0 && 
         lines[i + 1].search(/\S/) <= line.search(/\S/)) {
@@ -40,7 +57,7 @@ const calculateCognitiveComplexity = (code) => {
     }
   }
   
-  return complexity;
+  return { total: totalComplexity, lineComplexities };
 };
 
 export default calculateCognitiveComplexity;

@@ -32,3 +32,14 @@ button {
 button:hover {
   border-color: #646cff;
 }
+
+.complexity-annotation {
+  position: absolute;
+  right: 5px;
+  color: #888;
+  pointer-events: none;
+}
+
+.ace_gutter-cell {
+  position: relative;
+}

@@ -136,5 +136,24 @@ export const testExamples = [
     return n * factorial(n - 1)`,
     expectedComplexity: 2,
     explanation: "Recursive function adds 1 plus its conditions"
+  },
+  // Edge Cases
+  {
+    name: "Empty Function",
+    code: "def empty():\n    pass",
+    expectedComplexity: 0,
+    explanation: "Empty functions have zero complexity"
+  },
+  {
+    name: "Comments Only",
+    code: "def commented():\n    # this is a comment\n    pass",
+    expectedComplexity: 0,
+    explanation: "Comments don't add to complexity"
+  },
+  {
+    name: "Empty String",
+    code: "",
+    expectedComplexity: 0,
+    explanation: "Empty string has zero complexity"
   }
 ];

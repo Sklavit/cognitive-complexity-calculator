@@ -1,6 +1,7 @@
 const calculateLineComplexity = (line, nestingLevel) => {
   const complexity = { value: 0, reason: '' };
   
+  // Check for control structures first
   if (line.startsWith('if ') || line.startsWith('elif ')) {
     complexity.value = 1 + nestingLevel;
     complexity.reason = nestingLevel > 0 ? `+${1 + nestingLevel} (nesting=${nestingLevel})` : '+1';
@@ -13,14 +14,26 @@ const calculateLineComplexity = (line, nestingLevel) => {
     complexity.value = 1 + nestingLevel;
     complexity.reason = nestingLevel > 0 ? `+${1 + nestingLevel} (nesting=${nestingLevel})` : '+1';
   }
+  // Exception handling - each except adds 1 without nesting increment
   else if (line.startsWith('except ')) {
-    complexity.value = 1 + nestingLevel;
-    complexity.reason = nestingLevel > 0 ? `+${1 + nestingLevel} (nesting=${nestingLevel})` : '+1';
+    complexity.value = 1;
+    complexity.reason = '+1';
+  }
+  // Add break statement complexity
+  else if (line.includes('break') || line.includes('continue')) {
+    complexity.value = 1;
+    complexity.reason = '+1 (break/continue)';
   }
   
+  // Check for boolean sequences
   if (line.includes(' and ') || line.includes(' or ')) {
-    complexity.value += 1;
-    complexity.reason = complexity.reason ? `${complexity.reason}, +1 (logical)` : '+1 (logical)';
+    // Don't add boolean sequence complexity for 'elif' lines as they already count as conditions
+    if (!line.startsWith('elif ')) {
+      complexity.value += 1;
+      complexity.reason = complexity.reason ? 
+        `${complexity.reason}, +1 (boolean sequence)` : 
+        '+1 (boolean sequence)';
+    }
   }
   
   return complexity;
@@ -44,9 +57,9 @@ const calculateCognitiveComplexity = (code) => {
     lineComplexities.push(complexity);
     totalComplexity += complexity.value;
     
+    // Don't increment nesting level for try blocks
     if (line.startsWith('if ') || line.startsWith('elif ') || 
-        line.startsWith('for ') || line.startsWith('while ') ||
-        line.startsWith('try:')) {
+        line.startsWith('for ') || line.startsWith('while ')) {
       nestingLevel++;
     }
     

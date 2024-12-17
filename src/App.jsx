@@ -16,7 +16,24 @@ function App() {
   }, [code]);
 
   const computeComplexity = () => {
-    setComplexity(calculateCognitiveComplexity(code));
+    const result = calculateCognitiveComplexity(code);
+    setComplexity(result);
+
+    // Update code with new complexity comments
+    const lines = code.split('\n');
+    const updatedLines = lines.map((line, index) => {
+      const lineComplexity = result.lineComplexities[index];
+      if (!lineComplexity || !lineComplexity.reason) {
+        // Remove existing complexity comments
+        return line.replace(/\s*#\s*\+\d.*$/, '');
+      }
+      
+      // Remove any existing complexity comments and add new one
+      const cleanLine = line.replace(/\s*#\s*\+\d.*$/, '');
+      return `${cleanLine}  # ${lineComplexity.reason}`;
+    });
+    
+    setCode(updatedLines.join('\n'));
   };
 
   const handleAutoFormat = () => {

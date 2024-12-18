@@ -1,3 +1,7 @@
+# Disclaimer
+
+This code has been completely written by the Claude 3.5 model using only Bolt.diy, with my guidance and without any direct changes to the code.
+
 # Python Code Cognitive Complexity Analyzer
 
 A web-based tool for analyzing the cognitive complexity of Python code. This tool helps developers understand and measure the cognitive complexity of their Python functions, making it easier to identify code that might be difficult to understand and maintain.

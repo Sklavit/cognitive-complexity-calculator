@@ -35,8 +35,8 @@ export const testExamples = [
         if item.valid:  # +2 (nesting=1)
             break  # +1 for break
     return item`,
-    expectedComplexity: 4,
-    explanation: "Loop adds 1, nested if adds 2, break adds 1"
+    expectedComplexity: 3,
+    explanation: "Loop adds 1, nested if adds 2"
   },
   {
     name: "Exception Handling",

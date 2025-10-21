@@ -1,204 +1,267 @@
-const calculateLineComplexity = (line, context) => {
-  const complexity = { value: 0, reason: '' };
-  const { nestingLevel, inDecorator, inComprehension, continuedBooleanSequence } = context;
-  
-  // Skip complexity calculation if we're in a decorator or comprehension
-  if (inDecorator || inComprehension) {
-    return complexity;
+import { Python3Parser, Python3Listener } from 'dt-python-parser';
+
+/**
+ * Remove Python comments while preserving line structure
+ * This is needed because comments in certain positions (like after `and` in multiline if)
+ * can break the parser, but we need to preserve line numbers for complexity tracking
+ */
+function removeCommentsPreservingLines(code) {
+  return code.split('\n').map(line => {
+    // Remove comments but keep the newline
+    const commentIndex = line.indexOf('#');
+    if (commentIndex >= 0) {
+      return line.substring(0, commentIndex).trimEnd();
+    }
+    return line;
+  }).join('\n');
+}
+
+/**
+ * Custom listener to calculate cognitive complexity from Python AST
+ */
+class CognitiveComplexityListener extends Python3Listener {
+  constructor(code) {
+    super();
+    this.totalComplexity = 0;
+    this.nestingLevel = 0;
+    this.sourceLines = code.split('\n');
+    this.lineComplexities = this.sourceLines.map(() => ({ value: 0, reason: '' }));
+    this.currentFunctionName = null;
+    this.inComprehension = 0;
+    this.processedBooleanNodes = new WeakSet();
   }
 
-  // Strip any existing complexity comments
-  line = line.replace(/\s*#\s*\+\d.*$/, '').trim();
-
-  // Ignore try and finally blocks (they don't add complexity)
-  if (line.startsWith('try:') || line.startsWith('finally:')) {
-    return complexity;
-  }
-
-  // Check for control structures first
-  if (line.startsWith('if ') || line.startsWith('elif ')) {
-    complexity.value = 1 + nestingLevel;
-    complexity.reason = nestingLevel > 0 ? `+${1 + nestingLevel} (nesting=${nestingLevel})` : '+1';
-  }
-  else if (line.startsWith('else:')) {
-    complexity.value = 1;
-    complexity.reason = '+1';
-  }
-  else if (line.startsWith('for ') || line.startsWith('while ')) {
-    // Skip if it's a list comprehension
-    if (!line.includes('[') && !line.includes('{')) {
-      complexity.value = 1 + nestingLevel;
-      complexity.reason = nestingLevel > 0 ? `+${1 + nestingLevel} (nesting=${nestingLevel})` : '+1';
+  /**
+   * Add complexity to a specific line
+   */
+  addComplexity(line, value, reason) {
+    if (line >= 0 && line < this.lineComplexities.length) {
+      this.lineComplexities[line].value += value;
+      if (this.lineComplexities[line].reason) {
+        this.lineComplexities[line].reason += `, ${reason}`;
+      } else {
+        this.lineComplexities[line].reason = reason;
+      }
+      this.totalComplexity += value;
     }
   }
-  // Exception handling - each except adds 1 without nesting increment
-  else if (line.startsWith('except ')) {
-    complexity.value = 1;
-    complexity.reason = '+1 (exception)';
+
+  /**
+   * Get line number from context (1-based to 0-based index)
+   */
+  getLine(ctx) {
+    return ctx.start ? ctx.start.line - 1 : 0;
   }
-  // Check for lambda (don't add complexity unless it contains complex logic)
-  else if (line.includes('lambda') && !line.includes('if') && !line.includes('and') && !line.includes('or')) {
-    return complexity;
-  }
-  
-  // Check for recursive calls (identified by function name)
-  if (context.functionName && line.includes(context.functionName + '(')) {
-    const isRecursive = !line.startsWith('def '); // Exclude function definition
-    if (isRecursive) {
-      complexity.value += 1;
-      complexity.reason = complexity.reason ? 
-        `${complexity.reason}, +1 (recursion)` : 
-        '+1 (recursion)';
+
+  // Function definitions
+  enterFuncdef(ctx) {
+    // Extract function name - the name is typically the second child after 'def'
+    if (ctx.children && ctx.children.length > 1) {
+      const nameNode = ctx.children[1];
+      if (nameNode && nameNode.getText) {
+        this.currentFunctionName = nameNode.getText();
+      }
     }
   }
-  
-  // Check for boolean sequences with mixed operators
-  const hasAnd = line.includes(' and ');
-  const hasOr = line.includes(' or ');
-  const endsWithAnd = line.trim().endsWith(' and');
-  const endsWithOr = line.trim().endsWith(' or');
-  const startsWithAnd = line.trim().startsWith('and ');
-  const startsWithOr = line.trim().startsWith('or ');
-  
-  const isPartOfBooleanSequence = hasAnd || hasOr || endsWithAnd || endsWithOr || 
-    startsWithAnd || startsWithOr || continuedBooleanSequence;
 
-  if (isPartOfBooleanSequence) {
-    // Only add boolean sequence complexity if this is the start of a sequence
-    // or if it's a new type of operator
-    if (!continuedBooleanSequence || 
-        (continuedBooleanSequence.type === 'and' && (hasOr || startsWithOr)) ||
-        (continuedBooleanSequence.type === 'or' && (hasAnd || startsWithAnd))) {
-      
-      const hasMixedOperators = (hasAnd && hasOr) || 
-        (continuedBooleanSequence && (
-          (continuedBooleanSequence.type === 'and' && (hasOr || startsWithOr)) ||
-          (continuedBooleanSequence.type === 'or' && (hasAnd || startsWithAnd))
-        ));
-      
-      const booleanComplexity = hasMixedOperators ? 2 : 1;
-      complexity.value += booleanComplexity;
-      const reason = hasMixedOperators ? 
-        '+2 (mixed boolean sequence)' : 
-        '+1 (boolean sequence)';
-      complexity.reason = complexity.reason ? 
-        `${complexity.reason}, ${reason}` : 
-        reason;
+  exitFuncdef(ctx) {
+    this.currentFunctionName = null;
+  }
+
+  // If statements
+  enterIf_stmt(ctx) {
+    if (!ctx.children) return;
+
+    // Handle if/elif/else by examining children
+    // All if/elif/else in the same chain share the same nesting level
+    let hasIf = false;
+    for (let i = 0; i < ctx.children.length; i++) {
+      const child = ctx.children[i];
+      const tokenText = child.symbol ? child.symbol.text : null;
+
+      if (tokenText === 'if') {
+        const line = child.symbol ? child.symbol.line - 1 : 0;
+        const complexity = 1 + this.nestingLevel;
+        const reason = this.nestingLevel > 0 ?
+          `+${complexity} (nesting=${this.nestingLevel})` :
+          '+1';
+        this.addComplexity(line, complexity, reason);
+        hasIf = true;
+      } else if (tokenText === 'elif') {
+        // elif is at the same level as if, not nested further
+        const line = child.symbol ? child.symbol.line - 1 : 0;
+        const complexity = 1 + this.nestingLevel;
+        const reason = this.nestingLevel > 0 ?
+          `+${complexity} (nesting=${this.nestingLevel})` :
+          '+1';
+        this.addComplexity(line, complexity, reason);
+      } else if (tokenText === 'else') {
+        const line = child.symbol ? child.symbol.line - 1 : 0;
+        this.addComplexity(line, 1, '+1');
+      }
+    }
+
+    // Only increment nesting once for the entire if/elif/else chain
+    if (hasIf) {
+      this.nestingLevel++;
     }
   }
-  
-  return complexity;
-};
 
-const extractFunctionName = (line) => {
-  if (line.startsWith('def ')) {
-    const match = line.match(/def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/);
-    return match ? match[1] : null;
+  exitIf_stmt(ctx) {
+    // Decrease nesting level once for the entire if/elif/else chain
+    this.nestingLevel = Math.max(0, this.nestingLevel - 1);
   }
-  return null;
-};
 
+  // While loops
+  enterWhile_stmt(ctx) {
+    if (this.inComprehension > 0) return;
+
+    const line = this.getLine(ctx);
+    const complexity = 1 + this.nestingLevel;
+    const reason = this.nestingLevel > 0 ?
+      `+${complexity} (nesting=${this.nestingLevel})` :
+      '+1';
+    this.addComplexity(line, complexity, reason);
+    this.nestingLevel++;
+  }
+
+  exitWhile_stmt(ctx) {
+    if (this.inComprehension > 0) return;
+    this.nestingLevel = Math.max(0, this.nestingLevel - 1);
+  }
+
+  // For loops
+  enterFor_stmt(ctx) {
+    if (this.inComprehension > 0) return;
+
+    const line = this.getLine(ctx);
+    const complexity = 1 + this.nestingLevel;
+    const reason = this.nestingLevel > 0 ?
+      `+${complexity} (nesting=${this.nestingLevel})` :
+      '+1';
+    this.addComplexity(line, complexity, reason);
+    this.nestingLevel++;
+  }
+
+  exitFor_stmt(ctx) {
+    if (this.inComprehension > 0) return;
+    this.nestingLevel = Math.max(0, this.nestingLevel - 1);
+  }
+
+  // Exception handling
+  enterExcept_clause(ctx) {
+    const line = this.getLine(ctx);
+    this.addComplexity(line, 1, '+1 (exception)');
+    this.nestingLevel++;
+  }
+
+  exitExcept_clause(ctx) {
+    this.nestingLevel = Math.max(0, this.nestingLevel - 1);
+  }
+
+  // Boolean operators
+  enterAnd_test(ctx) {
+    if (ctx.children && ctx.children.length > 1 && !this.processedBooleanNodes.has(ctx)) {
+      this.processedBooleanNodes.add(ctx);
+      const line = this.getLine(ctx);
+      this.addComplexity(line, 1, '+1 (boolean sequence)');
+    }
+  }
+
+  enterOr_test(ctx) {
+    if (ctx.children && ctx.children.length > 1 && !this.processedBooleanNodes.has(ctx)) {
+      this.processedBooleanNodes.add(ctx);
+      const line = this.getLine(ctx);
+      this.addComplexity(line, 1, '+1 (boolean sequence)');
+    }
+  }
+
+  // Comprehensions
+  enterListmaker(ctx) {
+    this.inComprehension++;
+  }
+
+  exitListmaker(ctx) {
+    this.inComprehension = Math.max(0, this.inComprehension - 1);
+  }
+
+  enterSetlistmaker(ctx) {
+    this.inComprehension++;
+  }
+
+  exitSetlistmaker(ctx) {
+    this.inComprehension = Math.max(0, this.inComprehension - 1);
+  }
+
+  enterDictmaker(ctx) {
+    this.inComprehension++;
+  }
+
+  exitDictmaker(ctx) {
+    this.inComprehension = Math.max(0, this.inComprehension - 1);
+  }
+
+  enterTestlist_comp(ctx) {
+    const text = ctx.getText();
+    if (text.includes('for')) {
+      this.inComprehension++;
+    }
+  }
+
+  exitTestlist_comp(ctx) {
+    const text = ctx.getText();
+    if (text.includes('for')) {
+      this.inComprehension = Math.max(0, this.inComprehension - 1);
+    }
+  }
+
+  // Recursion detection
+  enterAtom_expr(ctx) {
+    if (this.currentFunctionName) {
+      const text = ctx.getText();
+      if (text.startsWith(this.currentFunctionName + '(')) {
+        const line = this.getLine(ctx);
+        this.addComplexity(line, 1, '+1 (recursion)');
+      }
+    }
+  }
+}
+
+/**
+ * Calculate cognitive complexity of Python code using AST parsing
+ * @param {string} code - Python source code
+ * @returns {object} - { total: number, lineComplexities: array }
+ */
 const calculateCognitiveComplexity = (code) => {
-  let totalComplexity = 0;
-  let nestingLevel = 0;
-  let inDecorator = false;
-  let inComprehension = false;
-  let currentFunctionName = null;
-  let continuedBooleanSequence = null;
-  const lineComplexities = [];
-  
-  // First, clean any existing complexity comments
-  const lines = code.split('\n').map(line => line.replace(/\s*#\s*\+\d.*$/, ''));
-  
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line || line.startsWith('#')) {
-      lineComplexities.push({ value: 0, reason: '' });
-      continue;
-    }
+  try {
+    const parser = new Python3Parser();
+    const listener = new CognitiveComplexityListener(code);
 
-    // Check for decorator
-    if (line.startsWith('@')) {
-      inDecorator = true;
-      lineComplexities.push({ value: 0, reason: '' });
-      continue;
-    }
-    
-    // Check for list/dict comprehension or generator expression
-    if (line.includes('[') || line.includes('{') || line.includes('(')) {
-      const hasComprehension = 
-        (line.includes('for') && line.includes('in')) ||
-        line.includes('if') && 
-        (line.includes(']') || line.includes('}') || line.includes(')'));
-      if (hasComprehension) {
-        inComprehension = true;
-      }
-    }
+    // Remove comments that might break multiline parsing while preserving line numbers
+    const cleanedCode = removeCommentsPreservingLines(code);
 
-    // Check for function definition and extract name
-    if (line.startsWith('def ')) {
-      currentFunctionName = extractFunctionName(line);
-      inDecorator = false; // Reset decorator flag
-    }
+    // Parse the cleaned code
+    const tree = parser.parse(cleanedCode);
 
-    // Track boolean sequences across lines
-    const hasAnd = line.includes(' and ');
-    const hasOr = line.includes(' or ');
-    const endsWithAnd = line.trim().endsWith(' and');
-    const endsWithOr = line.trim().endsWith(' or');
-    const startsWithAnd = line.trim().startsWith('and ');
-    const startsWithOr = line.trim().startsWith('or ');
+    // Walk the AST with the listener
+    parser.listen(listener, tree);
 
-    if (hasAnd || hasOr || endsWithAnd || endsWithOr || startsWithAnd || startsWithOr) {
-      if (!continuedBooleanSequence) {
-        continuedBooleanSequence = {
-          type: hasAnd || endsWithAnd || startsWithAnd ? 'and' : 'or',
-          startLine: i
-        };
-      }
-    } else if (line.endsWith(':') || line.endsWith(';') || line.endsWith(')')) {
-      continuedBooleanSequence = null;
-    }
+    console.log("Total Cognitive Complexity:", listener.totalComplexity);
+    console.table(listener.lineComplexities);
 
-    const context = {
-      nestingLevel,
-      inDecorator,
-      inComprehension,
-      functionName: currentFunctionName,
-      continuedBooleanSequence
+    return {
+      total: listener.totalComplexity,
+      lineComplexities: listener.lineComplexities
     };
-    
-    const complexity = calculateLineComplexity(line, context);
-    lineComplexities.push(complexity);
-    totalComplexity += complexity.value;
-    
-    // Reset comprehension flag after processing the line
-    inComprehension = false;
-    
-    // Adjust nesting level based on control structures
-    if ((line.startsWith('if ') || line.startsWith('elif ') || 
-         line.startsWith('for ') || line.startsWith('while ')) &&
-        !inComprehension) {
-      nestingLevel++;
-    }
-    
-    // Check for end of block by looking at next line's indentation
-    if (i < lines.length - 1) {
-      const nextLine = lines[i + 1].trim();
-      if (nextLine.length > 0) {
-        const currentIndent = lines[i].search(/\S/);
-        const nextIndent = lines[i + 1].search(/\S/);
-        if (nextIndent <= currentIndent) {
-          nestingLevel = Math.max(0, nestingLevel - 1);
-        }
-      }
-    }
+  } catch (error) {
+    console.error("Error parsing Python code:", error);
+    // Fallback to returning zero complexity if parsing fails
+    const lines = code.split('\n');
+    return {
+      total: 0,
+      lineComplexities: lines.map(() => ({ value: 0, reason: '' }))
+    };
   }
-
-  console.log("Total Cognitive Complexity:", totalComplexity);
-  console.table(lineComplexities);
-  
-  return { total: totalComplexity, lineComplexities };
 };
 
 export default calculateCognitiveComplexity;

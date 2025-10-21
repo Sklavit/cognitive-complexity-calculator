@@ -11,6 +11,9 @@ importers:
       ace-builds:
         specifier: ^1.43.4
         version: 1.43.4
+      dt-python-parser:
+        specifier: ^0.9.0
+        version: 0.9.0
       react:
         specifier: ^19.2.0
         version: 19.2.0
@@ -413,6 +416,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@types/antlr4@4.7.2':
+    resolution: {integrity: sha512-v6NASzZa4pUgO2QJJqGHTRRBfZDTOk2savuugSfCLatRTd2q+UtW0I7ub9mjzERhm7aWqGxBi886HnJkLYiIEA==}
+
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
 
@@ -485,6 +491,9 @@ packages:
   ace-builds@1.43.4:
     resolution: {integrity: sha512-8hAxVfo2ImICd69BWlZwZlxe9rxDGDjuUhh+WeWgGDvfBCE+r3lkynkQvIovDz4jcMi8O7bsEaFygaDT+h9sBA==}
 
+  antlr4@4.8.0:
+    resolution: {integrity: sha512-en/MxQ4OkPgGJQ3wD/muzj1uDnFSzdFIhc2+c6bHZokWkuBb6RRvFjpWhPxWLbgQvaEzldJZ0GSQpfSAaE3hqg==}
+
   assertion-error@2.0.1:
     resolution: {integrity: sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA==}
     engines: {node: '>=12'}
@@ -534,6 +543,9 @@ packages:
 
   diff-match-patch@1.0.5:
     resolution: {integrity: sha512-IayShXAgj/QMXgB0IWmKx+rOPuGMhqm5w6jvFxmVenXKIzRqTAAsbBPT3kWQeGANj3jGgvcvv4yK6SxqYmikgw==}
+
+  dt-python-parser@0.9.0:
+    resolution: {integrity: sha512-dU992G3TiGkUVRtemATPZEj3jXJwLCCYrkRfeX0n7czCV4XUaDbSyFhf3ue5/bWQuZl+Hnib0GKcbfDxMtzKTA==}
 
   electron-to-chromium@1.5.237:
     resolution: {integrity: sha512-icUt1NvfhGLar5lSWH3tHNzablaA5js3HVHacQimfP8ViEBOQv+L7DKEuHdbTZ0SKCO1ogTJTIL1Gwk9S6Qvcg==}
@@ -1106,6 +1118,8 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.52.5':
     optional: true
 
+  '@types/antlr4@4.7.2': {}
+
   '@types/babel__core@7.20.5':
     dependencies:
       '@babel/parser': 7.28.4
@@ -1211,6 +1225,8 @@ snapshots:
 
   ace-builds@1.43.4: {}
 
+  antlr4@4.8.0: {}
+
   assertion-error@2.0.1: {}
 
   baseline-browser-mapping@2.8.18: {}
@@ -1248,6 +1264,11 @@ snapshots:
   deep-eql@5.0.2: {}
 
   diff-match-patch@1.0.5: {}
+
+  dt-python-parser@0.9.0:
+    dependencies:
+      '@types/antlr4': 4.7.2
+      antlr4: 4.8.0
 
   electron-to-chromium@1.5.237: {}
 

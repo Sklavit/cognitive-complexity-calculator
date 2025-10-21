@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "ace-builds": "^1.43.4",
+    "dt-python-parser": "^0.9.0",
     "react": "^19.2.0",
     "react-ace": "^14.0.1",
     "react-dom": "^19.2.0"
